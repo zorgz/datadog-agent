@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/viper"
+	"github.com/hush-hush/viper"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -406,8 +406,10 @@ func Load() error {
 		if err != nil {
 			return fmt.Errorf("unable to decrypt secret from datadog.yaml: %v", err)
 		}
+
 		r := bytes.NewReader(finalConfig)
-		if err = Datadog.MergeConfig(r); err != nil {
+		// Merge the new config in the override section so it has precedence with env variables
+		if err = Datadog.MergeConfigOverride(r); err != nil {
 			return fmt.Errorf("could not update main configuration after decrypting secrets: %v", err)
 		}
 	}

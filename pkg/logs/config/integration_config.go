@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/spf13/viper"
+	"github.com/hush-hush/viper"
 )
 
 // Logs source types

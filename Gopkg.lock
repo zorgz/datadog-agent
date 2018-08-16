@@ -468,6 +468,11 @@
   revision = "bf9dde6d0d2c004a008c27aaee91170c786f6db8"
 
 [[projects]]
+  name = "github.com/hush-hush/viper"
+  packages = ["."]
+  revision = "b0879784105a7fca1b263f060a20767c97d372be"
+
+[[projects]]
   name = "github.com/imdario/mergo"
   packages = ["."]
   revision = "9316a62528ac99aaecb4e47eadd6dc8aa6533d58"
@@ -748,12 +753,6 @@
   packages = ["."]
   revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
   version = "v1.0.1"
-
-[[projects]]
-  name = "github.com/spf13/viper"
-  packages = ["."]
-  revision = "b5e8006cbee93ec955a89ab31e0e3ce3204f3736"
-  version = "v1.0.2"
 
 [[projects]]
   name = "github.com/stretchr/objx"
@@ -1316,6 +1315,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5a9127e88f491e8b090e9053c32bd9093cceaf268c57fc6774e5958816dc5311"
+  inputs-digest = "ba893f36406b73ce35591b2380b8ef2fa31955786b6cfa4cf6b1d4e37b2aaa83"
   solver-name = "gps-cdcl"
   solver-version = 1

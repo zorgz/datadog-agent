@@ -109,8 +109,8 @@
   revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
 
 [[constraint]]
-  name = "github.com/spf13/viper"
-  version = "=v1.0.2"
+  name = "github.com/hush-hush/viper"
+  revision = "b0879784105a7fca1b263f060a20767c97d372be"
 
 [[constraint]]
   name = "github.com/coreos/go-systemd"
