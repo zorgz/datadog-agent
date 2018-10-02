@@ -31,6 +31,7 @@
              Languages="1033"
              InstallPrivileges="elevated"
              Compressed="yes" />
+    
 
     <!-- This removes entirely the previous version -->
     <Upgrade Id="$(var.UpgradeCode)">
@@ -50,6 +51,12 @@
                           Timeout="1"
                           RebootPrompt="no"/>
 
+    <Property Id="MSIUSEREALADMINDETECTION" Value="1" /> 
+
+    <Condition Message="!(loc.MustLaunchAsAdmin)">
+        Privileged
+    </Condition>
+                  
     <!-- No need to restart Windows after the installation -->
     <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
 
