@@ -2,6 +2,7 @@
 Agent namespaced tasks
 """
 from __future__ import print_function
+import datetime
 import glob
 import os
 import shutil
@@ -269,8 +270,14 @@ def omnibus_build(ctx, puppy=False, log_level="info", base_dir=None, gem_path=No
     """
     Build the Agent packages with Omnibus Installer.
     """
+    depstart = None
+    depdone = None
+    buildstart = None
+    builddone = None
     if not skip_deps:
+        depstart = datetime.datetime.now()
         deps(ctx, no_checks=True)  # no_checks since the omnibus build installs checks with a dedicated software def
+        depdone = datetime.datetime.now()
 
     # omnibus config overrides
     overrides = []
@@ -284,6 +291,7 @@ def omnibus_build(ctx, puppy=False, log_level="info", base_dir=None, gem_path=No
     if overrides:
         overrides_cmd = "--override=" + " ".join(overrides)
 
+    buildstart = datetime.datetime.now()
     with ctx.cd("omnibus"):
         env = load_release_versions(ctx, release_version)
         cmd = "bundle install"
@@ -304,7 +312,15 @@ def omnibus_build(ctx, puppy=False, log_level="info", base_dir=None, gem_path=No
             args['populate_s3_cache'] = " --populate-s3-cache "
         if skip_sign:
             env['SKIP_SIGN_MAC'] = 'true'
+        
         ctx.run(cmd.format(**args), env=env)
+
+    builddone = datetime.datetime.now()
+
+    if not skip_deps and depstart and depdone:
+        print("Deps step elapsed:     {}".format(depdone - depstart))
+    if buildstart and builddone:
+        print("omnibus build elapsed: {}".format(builddone - buildstart))
 
 
 @task
