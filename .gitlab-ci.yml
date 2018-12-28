@@ -59,7 +59,7 @@ before_script:
   - cd $SRC_PATH
   - pip install --upgrade --ignore-installed pip setuptools
   - pip install -r requirements.txt
-  - inv -e deps
+  - inv -e deps -v
 
 #
 # Trigger conditions
