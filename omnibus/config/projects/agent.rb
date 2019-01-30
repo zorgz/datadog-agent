@@ -15,6 +15,8 @@ if ohai['platform'] == "windows"
   # dir will be determined by the Windows installer. This path must not contain
   # spaces because Omnibus doesn't quote the Git commands it launches.
   install_dir "C:/opt/datadog-agent/"
+  python_2_embedded "c:/opt/datadog-agent/embedded2"
+  python_3_embedded "c:/opt/datadog-agent/embedded3"
   maintainer 'Datadog Inc.' # Windows doesn't want our e-mail address :(
 else
   install_dir '/opt/datadog-agent'
@@ -110,18 +112,20 @@ if linux?
   dependency 'curl'
 end
 
-dependency 'cacerts'
 # creates required build directories
 dependency 'datadog-agent-prepare'
+
+dependency 'cacerts_py2'
+dependency 'cacerts_py3'
 
 # Datadog agent
 dependency 'datadog-agent'
 
 # Additional software
-dependency 'datadog-pip'
-dependency 'datadog-agent-integrations'
-dependency 'datadog-a7'
-dependency 'datadog-agent-env-check'
+dependency 'datadog-pip-py2'
+dependency 'datadog-agent-integrations-py2'
+#dependency 'datadog-a7'
+dependency 'datadog-agent-env-check-py2'
 dependency 'jmxfetch'
 
 # External agents

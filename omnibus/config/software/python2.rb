@@ -19,7 +19,7 @@
 # it was copied here to enable the `-fPIC` cflag on linux.
 # TODO: Consolidate with the omnibus-software definition as soon as the
 # change has been tested on Agent 5 as well.
-name "python"
+name "python2"
 
 if ohai["platform"] != "windows"
   default_version "2.7.15"
@@ -87,7 +87,7 @@ else
   build do
     #
     # expand python zip into the embedded directory
-    command "XCOPY /YEHIR *.* \"#{windows_safe_path(install_dir)}\\embedded\""
-    command "SETX PYTHONPATH \"#{windows_safe_path(install_dir)}\\embedded\""
+    command "XCOPY /YEHIR *.* \"#{windows_safe_path(python_2_embedded)}\""
+    command "SETX PYTHONPATH \"#{windows_safe_path(python_2_embedded)}\""
   end
 end

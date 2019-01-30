@@ -6,7 +6,7 @@
 require './lib/ostools.rb'
 require 'json'
 
-name 'datadog-agent-integrations'
+name 'datadog-agent-integrations-py2'
 
 dependency 'datadog-pip-py2'
 dependency 'datadog-agent'
@@ -100,18 +100,18 @@ build do
     all_reqs_file.close
 
     nix_build_env = {
-      "CFLAGS" => "-I#{install_dir}/embedded/include -I/opt/mqm/inc",
-      "CXXFLAGS" => "-I#{install_dir}/embedded/include -I/opt/mqm/inc",
-      "LDFLAGS" => "-L#{install_dir}/embedded/lib -L/opt/mqm/lib64 -L/opt/mqm/lib",
-      "LD_RUN_PATH" => "#{install_dir}/embedded/lib -L/opt/mqm/lib64 -L/opt/mqm/lib",
-      "PATH" => "#{install_dir}/embedded/bin:#{ENV['PATH']}",
+      "CFLAGS" => "-I#{python_2_embedded}/include -I/opt/mqm/inc",
+      "CXXFLAGS" => "-I#{python_2_embedded}/include -I/opt/mqm/inc",
+      "LDFLAGS" => "-L#{python_2_embedded}/lib -L/opt/mqm/lib64 -L/opt/mqm/lib",
+      "LD_RUN_PATH" => "#{python_2_embedded}/lib -L/opt/mqm/lib64 -L/opt/mqm/lib",
+      "PATH" => "#{python_2_embedded}/bin:#{ENV['PATH']}",
     }
 
     # Install all the requirements
     # Install all the build requirements
     if windows?
       pip_args = "install --require-hashes -r #{project_dir}/check_requirements.txt"
-      command "#{windows_safe_path(install_dir)}\\embedded\\scripts\\pip.exe #{pip_args}"
+      command "#{windows_safe_path(python_2_embedded)}\\scripts\\pip.exe #{pip_args}"
     else
       pip "install --require-hashes -r #{project_dir}/check_requirements.txt", :env => nix_build_env
     end
@@ -120,24 +120,24 @@ build do
     # HACK: we need to do this like this due to the well known issues with omnibus
     # runtime requirements.
     if windows?
-      freeze_mixin = shellout!("#{windows_safe_path(install_dir)}\\embedded\\Scripts\\pip.exe freeze")
+      freeze_mixin = shellout!("#{windows_safe_path(python_2_embedded)}\\Scripts\\pip.exe freeze")
       frozen_agent_reqs = freeze_mixin.stdout
     else
-      freeze_mixin = shellout!("#{install_dir}/embedded/bin/pip freeze")
+      freeze_mixin = shellout!("#{python_2_embedded}/bin/pip freeze")
       frozen_agent_reqs = freeze_mixin.stdout
     end
-    pip "freeze > #{project_dir}/#{core_constraints_file}"
+    py2pip "freeze > #{project_dir}/#{core_constraints_file}"
 
     # Install all the build requirements
     if windows?
       pip_args = "install pip-tools==#{PIPTOOLS_VERSION}"
-      command "#{windows_safe_path(install_dir)}\\embedded\\scripts\\pip.exe #{pip_args}"
+      command "#{windows_safe_path(python_2_embedded)}\\scripts\\pip.exe #{pip_args}"
     else
       pip "install pip-tools==#{PIPTOOLS_VERSION}", :env => nix_build_env
     end
 
     # Windows pip workaround to support globs
-    python_bin = "\"#{windows_safe_path(install_dir)}\\embedded\\python.exe\""
+    python_bin = "\"#{windows_safe_path(python_2_embedded)}\\python.exe\""
     python_pip_no_deps = "pip install -c #{windows_safe_path(project_dir)}\\#{core_constraints_file} --no-deps #{windows_safe_path(project_dir)}"
     python_pip_req = "pip install -c #{windows_safe_path(project_dir)}\\#{core_constraints_file} --no-deps --require-hashes -r"
     python_pip_uninstall = "pip uninstall -y"
@@ -148,7 +148,7 @@ build do
       command("#{python_bin} -m piptools compile --generate-hashes --output-file #{windows_safe_path(install_dir)}\\#{agent_requirements_file} #{windows_safe_path(project_dir)}\\datadog_checks_base\\datadog_checks\\base\\data\\agent_requirements.in")
     else
       pip "install -c #{project_dir}/#{core_constraints_file} --no-deps .", :env => nix_build_env, :cwd => "#{project_dir}/datadog_checks_base"
-      command("#{install_dir}/embedded/bin/python -m piptools compile --generate-hashes --output-file #{install_dir}/#{agent_requirements_file} #{project_dir}/datadog_checks_base/datadog_checks/base/data/agent_requirements.in")
+      command("#{python_2_embedded}/bin/python -m piptools compile --generate-hashes --output-file #{install_dir}/#{agent_requirements_file} #{project_dir}/datadog_checks_base/datadog_checks/base/data/agent_requirements.in")
     end
 
     # Uninstall the deps that pip-compile installs so we don't include them in the final artifact
@@ -231,7 +231,7 @@ build do
       if windows?
         command("#{python_bin} -m #{python_pip_no_deps}\\#{check}")
       else
-        pip "install --no-deps .", :env => nix_build_env, :cwd => "#{project_dir}/#{check}"
+        py2pip "install --no-deps .", :env => nix_build_env, :cwd => "#{project_dir}/#{check}"
       end
     end
   end

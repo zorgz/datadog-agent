@@ -193,9 +193,9 @@
                           Description="!(loc.ServiceDescription)"
                           Name="DatadogAgent"
                           ErrorControl="ignore"
-                          Start="auto"
+                          Start="demand"
                           Type="ownProcess"
-                          Vital="yes"
+                          Vital="no"
                           Interactive="no"
                           Account="LocalSystem">
             <ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall ="yes" />
@@ -212,7 +212,7 @@
                           Start="install"
                           Stop="both"
                           Remove="uninstall"
-                          Wait="yes" />
+                          Wait="no" />
           <RemoveFolder Id="APPLICATIONROOTDIRECTORY" On="uninstall" />
           <!-- The "Name" field must match the argument to eventlog.Open() -->
           <util:EventSource Log="Application" Name="DatadogAgent"
@@ -257,7 +257,7 @@
                             Start="install"
                             Stop="both"
                             Remove="uninstall"
-                            Wait="yes" />
+                            Wait="no" />
             <!-- The "Name" field must match the argument to eventlog.Open() -->
             <util:EventSource Log="Application" Name="datadog-trace-agent"
                     EventMessageFile="[AGENT]trace-agent.exe"
@@ -298,7 +298,7 @@
                             Start="install"
                             Stop="both"
                             Remove="uninstall"
-                            Wait="yes" />
+                            Wait="no" />
             <!-- The "Name" field must match the argument to eventlog.Open() -->
             <util:EventSource Log="Application" Name="datadog-process-agent"
                     EventMessageFile="[AGENT]process-agent.exe"
