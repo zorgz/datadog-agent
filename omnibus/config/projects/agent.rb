@@ -127,6 +127,9 @@ dependency 'jmxfetch'
 # External agents
 dependency 'datadog-process-agent' # Includes network-tracer
 
+# import `six` library
+dependency 'datadog-agent-six'
+
 if osx?
   dependency 'datadog-agent-mac-app'
 end
