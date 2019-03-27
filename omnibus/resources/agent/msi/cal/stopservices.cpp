@@ -542,124 +542,60 @@ doneStartService:
 class serviceDef {
 private:
     const wchar_t * svcName;
-    const wchar_t * displayName;
-    const wchar_t * displayDescription;
-    DWORD       access;
-    DWORD       serviceType;
-    DWORD       startType;
-    DWORD       dwErrorControl;
-    const wchar_t * lpBinaryPathName;
-    const wchar_t * lpLoadOrderGroup;
-    LPDWORD lpdwTagId;
-    const wchar_t * lpDependencies; // list of single-null-terminated strings, double null at end
     const wchar_t * lpServiceStartName;
     const wchar_t * lpPassword;
     
 public:
     serviceDef() :
         svcName(NULL),
-        displayName(NULL),
-        displayDescription(NULL),
-        access(SERVICE_ALL_ACCESS),
-        serviceType(SERVICE_WIN32_OWN_PROCESS),
-        startType(SERVICE_DEMAND_START),
-        dwErrorControl(SERVICE_ERROR_NORMAL),
-        lpBinaryPathName(NULL),
-        lpLoadOrderGroup(NULL), // not needed
-        lpdwTagId(NULL), // no tag identifier
-        lpDependencies(NULL), // no dependencies to start
         lpServiceStartName(NULL), // will set to LOCAL_SYSTEM by default
         lpPassword(NULL) // no password for LOCAL_SYSTEM
     {}
     serviceDef(const wchar_t* name) :
         svcName(name),
-        displayName(NULL),
-        displayDescription(NULL),
-        access(SERVICE_ALL_ACCESS),
-        serviceType(SERVICE_WIN32_OWN_PROCESS),
-        startType(SERVICE_DEMAND_START),
-        dwErrorControl(SERVICE_ERROR_NORMAL),
-        lpBinaryPathName(NULL),
-        lpLoadOrderGroup(NULL), // not needed
-        lpdwTagId(NULL), // no tag identifier
-        lpDependencies(NULL), // no dependencies to start
         lpServiceStartName(NULL), // will set to LOCAL_SYSTEM by default
         lpPassword(NULL) // no password for LOCAL_SYSTEM
     {}
 
-    serviceDef(const wchar_t * name, const wchar_t *display, const wchar_t *desc,
-               const wchar_t* path, const wchar_t* deps, DWORD st,
+    serviceDef(const wchar_t * name,
                const wchar_t* user, const wchar_t* pass) :
         svcName(name),
-        displayName(display),
-        displayDescription(desc),
-        access(SERVICE_ALL_ACCESS),
-        serviceType(SERVICE_WIN32_OWN_PROCESS),
-        startType(st),
-        dwErrorControl(SERVICE_ERROR_NORMAL),
-        lpBinaryPathName(path),
-        lpLoadOrderGroup(NULL), // not needed
-        lpdwTagId(NULL), // no tag identifier
-        lpDependencies(deps), 
         lpServiceStartName(user), 
         lpPassword(pass) // no password for LOCAL_SYSTEM
     {}
 
-    DWORD create(SC_HANDLE hMgr)
+    DWORD updateLogin(SC_HANDLE hMgr)
     {
         DWORD retval = 0;
-        WcaLog(LOGMSG_STANDARD, "serviceDef::create()");
-        SC_HANDLE hService = CreateService(hMgr,
-            this->svcName,
-            this->displayName,
-            this->access,
-            this->serviceType,
-            this->startType,
-            this->dwErrorControl,
-            this->lpBinaryPathName,
-            this->lpLoadOrderGroup,
-            this->lpdwTagId,
-            this->lpDependencies,
-            this->lpServiceStartName,
-            this->lpPassword);
-        if(!hService) {
-            
+        WcaLog(LOGMSG_STANDARD, "serviceDef::updateLogin()");
+       
+        SC_HANDLE hSvc;
+        hSvc = OpenServiceW(hMgr, this->svcName, SC_MANAGER_ALL_ACCESS );
+        if (!hSvc) {
             retval = GetLastError();
-            WcaLog(LOGMSG_STANDARD, "Failed to CreateService %d", retval);
             return retval;
         }
-        WcaLog(LOGMSG_STANDARD, "Created Service");
-        if (this->startType == SERVICE_AUTO_START) {
-            // make it delayed-auto-start
-            SERVICE_DELAYED_AUTO_START_INFO inf = { TRUE };
-            WcaLog(LOGMSG_STANDARD, "setting to delayed auto start");
-            ChangeServiceConfig2(hService, SERVICE_CONFIG_DELAYED_AUTO_START_INFO, (LPVOID)&inf);
-            WcaLog(LOGMSG_STANDARD, "done setting to delayed auto start");
+        
+        BOOL bRet = ChangeServiceConfigW(hSvc,
+                                    SERVICE_NO_CHANGE,
+                                    SERVICE_NO_CHANGE,
+                                    SERVICE_NO_CHANGE,
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    this->lpServiceStartName,
+                                    this->lpPassword,
+                                    NULL);
+        if(!bRet){
+            WcaLog(LOGMSG_STANDARD, "Failed to change service config %d", (retval = GetLastError()));
+            goto done_update;
         }
-        // set the description
-        if (this->displayDescription) {
-            WcaLog(LOGMSG_STANDARD, "setting description");
-            SERVICE_DESCRIPTION desc = { (LPWSTR)this->displayDescription };
-            ChangeServiceConfig2(hService, SERVICE_CONFIG_DESCRIPTION, (LPVOID)&desc);
-            WcaLog(LOGMSG_STANDARD, "done setting description");
+        WcaLog(LOGMSG_STANDARD, "Done with update() %d", retval);
+    done_update:
+        if(hSvc != NULL) {
+            CloseServiceHandle(hSvc);
         }
-        // set the error recovery actions
-        SC_ACTION actions[4] = {
-            { SC_ACTION_RESTART, 60000}, // restart after 60 seconds
-            { SC_ACTION_RESTART, 60000}, // restart after 60 seconds
-            { SC_ACTION_RESTART, 60000}, // restart after 60 seconds
-            { SC_ACTION_NONE, 0}, // restart after 60 seconds
-        };
-        SERVICE_FAILURE_ACTIONS failactions = {
-            60, // reset count after 60 seconds
-            NULL, // no reboot message
-            NULL, // no command to execute
-            4, // 4 actions
-            actions
-        };
-        WcaLog(LOGMSG_STANDARD, "Setting failure actions");
-        ChangeServiceConfig2(hService, SERVICE_CONFIG_FAILURE_ACTIONS, (LPVOID)&failactions);
-        WcaLog(LOGMSG_STANDARD, "Done with create() %d", retval);
         return retval;
     }
 
@@ -683,18 +619,11 @@ int installServices(MSIHANDLE hInstall, CustomActionData& data, const wchar_t *p
     SC_HANDLE hService = NULL;
     int retval = 0;
     // Get a handle to the SCM database. 
-#define NUM_SERVICES 3
+#define NUM_SERVICES 2
     serviceDef services[NUM_SERVICES] = {
-        serviceDef(agentService.c_str(), L"DataDog Agent", L"Send metrics to DataDog",
-                   L"c:\\program files\\datadog\\datadog agent\\embedded\\agent.exe",
-                   L"winmgmt\0\0", SERVICE_AUTO_START, data.getFullUsername().c_str(), password),
-        serviceDef(traceService.c_str(), L"DataDog Trace Agent", L"Send tracing metrics to DataDog",
-                   L"c:\\program files\\datadog\\datadog agent\\bin\\agent\\trace-agent.exe",
-                   L"datadogagent\0\0", SERVICE_DEMAND_START, data.getFullUsername().c_str(), password),
-        serviceDef(processService.c_str(), L"DataDog Process Agent", L"Send process metrics to DataDog",
-                   L"c:\\program files\\datadog\\datadog agent\\bin\\agent\\process-agent.exe",
-                   L"datadogagent\0\0", SERVICE_DEMAND_START, NULL, NULL)
-
+        serviceDef(agentService.c_str(), data.getFullUsername().c_str(), password),
+        serviceDef(traceService.c_str(),  data.getFullUsername().c_str(), password)
+        //, serviceDef(processService.c_str(),  NULL, NULL)
     };
     WcaLog(LOGMSG_STANDARD, "Installing services");
     hScManager = OpenSCManager(
@@ -708,18 +637,14 @@ int installServices(MSIHANDLE hInstall, CustomActionData& data, const wchar_t *p
         return -1;
     }
     for (int i = 0; i < NUM_SERVICES; i++) {
-        WcaLog(LOGMSG_STANDARD, "installing service %d", i);
-        retval = services[i].create(hScManager);
+        WcaLog(LOGMSG_STANDARD, "Updating service %d", i);
+        retval = services[i].updateLogin(hScManager);
         if (retval != 0) {
-            WcaLog(LOGMSG_STANDARD, "Failed to install service %d %d 0x%x, rolling back", i, retval, retval);
-            for (i = i - 1; i >= 0; i--) {
-                DWORD rbret = services[i].destroy(hScManager);
-                if (rbret != 0) {
-                    WcaLog(LOGMSG_STANDARD, "Failed to roll back service install %d 0x%x", rbret, rbret);
-                }
-            }
+            WcaLog(LOGMSG_STANDARD, "Failed to update service %d %d 0x%x", i, retval, retval);
+            break;
         }
     }
+    if(retval == 0)
     WcaLog(LOGMSG_STANDARD, "done installing services");
     UINT er = EnableServiceForUser(data, traceService);
     if (0 != er) {
@@ -745,18 +670,11 @@ int uninstallServices(MSIHANDLE hInstall, CustomActionData& data) {
     SC_HANDLE hService = NULL;
     int retval = 0;
     // Get a handle to the SCM database. 
-#define NUM_SERVICES 3
-    serviceDef services[NUM_SERVICES] = {
-        serviceDef(agentService.c_str(), L"DataDog Agent", L"Send metrics to DataDog",
-                   L"c:\\program files\\datadog\\datadog agent\\embedded\\agent.exe",
-                   L"winmgmt\0\0", SERVICE_AUTO_START, data.getFullUsername().c_str(), NULL),
-        serviceDef(traceService.c_str(), L"DataDog Trace Agent", L"Send tracing metrics to DataDog",
-                   L"c:\\program files\\datadog\\datadog agent\\bin\\agent\\trace-agent.exe",
-                   L"datadogagent\0\0", SERVICE_DEMAND_START, data.getFullUsername().c_str(), NULL),
-        serviceDef(processService.c_str(), L"DataDog Process Agent", L"Send process metrics to DataDog",
-                   L"c:\\program files\\datadog\\datadog agent\\bin\\agent\\process-agent.exe",
-                   L"datadogagent\0\0", SERVICE_DEMAND_START, NULL, NULL)
-
+#define NUM_SERVICES_UNINSTALL 3
+    serviceDef services[NUM_SERVICES_UNINSTALL] = {
+        serviceDef(agentService.c_str()),
+        serviceDef(traceService.c_str()),
+        serviceDef(processService.c_str())
     };
     WcaLog(LOGMSG_STANDARD, "Installing services");
     hScManager = OpenSCManager(
@@ -769,7 +687,7 @@ int uninstallServices(MSIHANDLE hInstall, CustomActionData& data) {
         WcaLog(LOGMSG_STANDARD, "OpenSCManager failed (%d)\n", GetLastError());
         return -1;
     }
-    for (int i = NUM_SERVICES - 1; i >= 0; i--) {
+    for (int i = NUM_SERVICES_UNINSTALL - 1; i >= 0; i--) {
         WcaLog(LOGMSG_STANDARD, "deleting service service %d", i);
         DWORD rbret = services[i].destroy(hScManager);
         if (rbret != 0) {

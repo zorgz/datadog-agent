@@ -213,7 +213,32 @@
                 DiskId="1"
                 Source="$(var.BinFiles)/agent.exe"/>
           
-          
+                <ServiceInstall Id="DatadogServiceInstaller"
+                                DisplayName="!(loc.ServiceDisplayName)"
+                                Description="!(loc.ServiceDescription)"
+                                Name="DatadogAgent"
+                                ErrorControl="ignore"
+                                Start="auto"
+                                Type="ownProcess"
+                                Vital="yes"
+                                Interactive="no"
+                                >
+                  <ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall ="yes" />
+                  <util:ServiceConfig
+                        FirstFailureActionType='restart'
+                        SecondFailureActionType='restart'
+                        ThirdFailureActionType='restart'
+                        RestartServiceDelayInSeconds='30'
+                        ResetPeriodInDays='1'/>
+                  <ServiceDependency Id="winmgmt" />
+                </ServiceInstall>
+          <ServiceControl Id="DatadogStartService"
+                          Name="DatadogAgent"
+                          Start="install"
+                          Stop="both"
+                          Remove="uninstall"
+                          Wait="no" />
+          <RemoveFolder Id="APPLICATIONROOTDIRECTORY" On="uninstall" />
           <!-- The "Name" field must match the argument to eventlog.Open() -->
           <util:EventSource Log="Application" Name="DatadogAgent"
                 EventMessageFile="[DIST]agent.exe"
@@ -235,6 +260,31 @@
                 KeyPath="yes"
                 DiskId="1"
                 Source="$(var.BinFiles)/trace-agent.exe"/>
+            <ServiceInstall Id="DatadogAPMServiceInstaller"
+                            DisplayName="!(loc.ServiceApmDisplayName)"
+                            Description="!(loc.ServiceApmDescription)"
+                            Name="datadog-trace-agent"
+                            ErrorControl="ignore"
+                            Start="demand"
+                            Type="ownProcess"
+                            Vital="yes"
+                            Interactive="no"
+                            Arguments="--config=c:\programdata\datadog\datadog.yaml" >
+              <ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall ="yes" />
+              <util:ServiceConfig
+                    FirstFailureActionType='restart'
+                    SecondFailureActionType='restart'
+                    ThirdFailureActionType='restart'
+                    RestartServiceDelayInSeconds='30'
+                    ResetPeriodInDays='1'/>
+              <ServiceDependency Id="datadogagent" />
+            </ServiceInstall>
+            <ServiceControl Id="DatadogAPMStartService"
+                            Name="datadog-trace-agent"
+                            Start="install"
+                            Stop="both"
+                            Remove="uninstall"
+                            Wait="no" />
             <!-- The "Name" field must match the argument to eventlog.Open() -->
             <util:EventSource Log="Application" Name="datadog-trace-agent"
                     EventMessageFile="[AGENT]trace-agent.exe"
@@ -250,6 +300,32 @@
                 KeyPath="yes"
                 DiskId="1"
                 Source="$(var.BinFiles)/process-agent.exe"/>
+            <ServiceInstall Id="DatadogProcessServiceInstaller"
+                            DisplayName="!(loc.ServiceProcessDisplayName)"
+                            Description="!(loc.ServiceProcessDescription)"
+                            Name="datadog-process-agent"
+                            ErrorControl="ignore"
+                            Start="demand"
+                            Type="ownProcess"
+                            Vital="yes"
+                            Interactive="no"
+                            Account="LocalSystem"
+                            Arguments="--config=c:\programdata\datadog\datadog.yaml" >
+              <ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall ="yes" />
+              <util:ServiceConfig
+                    FirstFailureActionType='restart'
+                    SecondFailureActionType='restart'
+                    ThirdFailureActionType='restart'
+                    RestartServiceDelayInSeconds='30'
+                    ResetPeriodInDays='1'/>
+                    <ServiceDependency Id="datadogagent" />
+              </ServiceInstall>
+            <ServiceControl Id="DatadogProcessStartService"
+                            Name="datadog-process-agent"
+                            Start="install"
+                            Stop="both"
+                            Remove="uninstall"
+                            Wait="no" />
             <!-- The "Name" field must match the argument to eventlog.Open() -->
             <util:EventSource Log="Application" Name="datadog-process-agent"
                     EventMessageFile="[AGENT]process-agent.exe"
@@ -345,8 +421,6 @@
     <InstallExecuteSequence>
       <!-- go ahead and always stop the services; if they're not installed (new install) it won't have any impact -->
 
-      <!-- always stop the services, regardless of what's going on -->
-      <Custom Action='StopDDServices' After='StopServices'> </Custom>
 
       <!-- only run the FinalizeInstall action on INSTALL (for now) Note this
            is from the perspective of the installer being run; on upgrade the 
@@ -356,9 +430,7 @@
       <Custom Action='SetFinalizeProperty' Before='FinalizeInstall'> _INSTALL </Custom>
       <Custom Action='FinalizeInstall' After='InstallServices'> _INSTALL </Custom>
 
-      <!-- Same deal here -->
-      <Custom Action='StartDDServices' After='FinalizeInstall'> _INSTALL </Custom>
-      
+     
       <!-- only do the uninstall (which removes the user state and file perms) 
            on a full uninstall -->
       <Custom Action='SetUninstallProperty' Before='DoUninstall'> _UNINSTALL </Custom>

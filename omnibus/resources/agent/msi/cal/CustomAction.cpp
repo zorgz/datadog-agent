@@ -43,12 +43,6 @@ extern "C" UINT __stdcall FinalizeInstall(MSIHANDLE hInstall) {
         er = ERROR_INSTALL_FAILURE;
         goto LExit;
     }
-    // check to see if the service is already installed
-    if ((ddServiceExists = doesServiceExist(hInstall, agentService)) == -1) {
-        er = ERROR_INSTALL_FAILURE;
-        goto LExit;
-    }
-    // check to see if we're a domain controller.
     isDC = isDomainController(hInstall);
 
     // now we have all the information we need to decide if this is a
@@ -85,65 +79,48 @@ extern "C" UINT __stdcall FinalizeInstall(MSIHANDLE hInstall) {
     //       use password if provided, otherwise generate
 
     if (isDC) {
-        if (!ddUserExists && ddServiceExists) {
-            WcaLog(LOGMSG_STANDARD, "Invalid configuration; no DD user, but service exists");
+        if (!data.present(propertyDDAgentUserPassword)) {
+            WcaLog(LOGMSG_STANDARD, "Must supply password for dd-agent-user to create user and/or install service in a domain");
             er = ERROR_INSTALL_FAILURE;
             goto LExit;
-        }
-        if (!ddUserExists || !ddServiceExists) {
-            if (!data.present(propertyDDAgentUserPassword)) {
-                WcaLog(LOGMSG_STANDARD, "Must supply password for dd-agent-user to create user and/or install service in a domain");
-                er = ERROR_INSTALL_FAILURE;
-                goto LExit;
-            }
         }
     }
     else {
         if (ddUserExists)
         {
             if (data.getDomainPtr() != NULL) {
-                // if it's a domain user. We need the password if the service isn't here
-                if (!ddServiceExists && !data.present(propertyDDAgentUserPassword))
+                // if it's a domain user. We need the password
+                if ( !data.present(propertyDDAgentUserPassword))
                 {
                     WcaLog(LOGMSG_STANDARD, "Must supply the password to allow service registration");
                     er = ERROR_INSTALL_FAILURE;
                     goto LExit;
                 }
             }
-            else {
-                if (!ddServiceExists) {
-                    WcaLog(LOGMSG_STANDARD, "Invalid configuration; DD user exists, but no service exists");
-                    er = ERROR_INSTALL_FAILURE;
-                    goto LExit;
-                }
-            }
+            
         }
-        if (!ddUserExists && ddServiceExists) {
-            WcaLog(LOGMSG_STANDARD, "Invalid configuration; no DD user, but service exists");
-            er = ERROR_INSTALL_FAILURE;
-            goto LExit;
-        }
+        
     }
     // ok.  If we get here, we should be in a sane state (all installation conditions met)
 
+    // See if we have a password, or need to generate one
+    passbuflen = MAX_PASS_LEN + 2;
+
+    if (data.value(propertyDDAgentUserPassword, providedPassword)) {
+        passToUse = providedPassword.c_str();
+    }
+    else {
+        passbuf = new wchar_t[passbuflen];
+        if (!generatePassword(passbuf, passbuflen)) {
+            WcaLog(LOGMSG_STANDARD, "failed to generate password");
+            er = ERROR_INSTALL_FAILURE;
+            goto LExit;
+        }
+        passToUse = passbuf;
+    }
     // first, let's decide if we need to create the dd-agent-user
     if (!ddUserExists) {
-        // that was easy.  Need to create the user.  See if we have a password, or need to
-        // generate one
-        passbuflen = MAX_PASS_LEN + 2;
-
-        if (data.value(propertyDDAgentUserPassword, providedPassword)) {
-            passToUse = providedPassword.c_str();
-        }
-        else {
-            passbuf = new wchar_t[passbuflen];
-            if (!generatePassword(passbuf, passbuflen)) {
-                WcaLog(LOGMSG_STANDARD, "failed to generate password");
-                er = ERROR_INSTALL_FAILURE;
-                goto LExit;
-            }
-            passToUse = passbuf;
-        }
+        // that was easy.  Need to create the user.  
         DWORD nErr = 0;
         DWORD ret = doCreateUser(data.getUsername(), data.getDomainPtr(), ddAgentUserDescription, passToUse);
         if (ret != 0) {
@@ -159,8 +136,28 @@ extern "C" UINT __stdcall FinalizeInstall(MSIHANDLE hInstall) {
             keyRollback.setStringValue(installCreatedDDDomain.c_str(), data.getDomainPtr());
             keyInstall.setStringValue(installCreatedDDDomain.c_str(), data.getDomainPtr());
         }
+    } else {
+        // we/re going to need to update the password,
+        WcaLog(LOGMSG_STANDARD, "Attempting to reset password of existing user");
+        // if the user exists, update the password with the newly generated
+        // password.  We need to update the password on every install, b/c the
+        // service registration code runs on every upgrade, and we need to know
+        // the password.  Rather than store the password, just generate a new
+        // one and use that
+        USER_INFO_1003 newPassword;
+        newPassword.usri1003_password = (LPWSTR)passToUse;
+        DWORD ret = NetUserSetInfo(NULL, // always local server
+            data.getQualifiedUsername().c_str(),
+            1003, // according to the docs there's no constant
+            (LPBYTE)&newPassword,
+            NULL);
+        if (0 != ret) {
+            WcaLog(LOGMSG_STANDARD, "Failed to reset password for user %d", ret);
+            er = ERROR_INSTALL_FAILURE;
+            goto LExit;
+        }
     }
-    if(!ddUserExists || !ddServiceExists)
+    if(!ddUserExists)
     {
         LOCALGROUP_MEMBERS_INFO_0 lmi0;
         memset(&lmi0, 0, sizeof(LOCALGROUP_MEMBERS_INFO_0));
