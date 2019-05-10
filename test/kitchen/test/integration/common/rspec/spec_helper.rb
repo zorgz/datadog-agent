@@ -37,8 +37,11 @@ end
 def stop
   if os == :windows
     # forces the trace agent (and other dependent services) to stop
-    system 'net stop /y datadogagent 2>&1'
+    status_stop = `net /y stop datadogagent 2>&1`
+    puts status_stop
     sleep 15
+    status_out = `sc interrogate datadogagent 2>&1`
+    puts status_out
   else
     if has_systemctl
       system 'sudo systemctl stop datadog-agent.service && sleep 10'
