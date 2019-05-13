@@ -16,6 +16,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-agent/pkg/forwarder"
@@ -37,19 +38,21 @@ func resetDefaults() {
 	maxPayloadSize = maxPayloadSizeDefault
 }
 
-func (d *dummyMarshaller) JSONHeader() []byte {
-	return []byte(d.header)
+func (d *dummyMarshaller) WriteHeader(stream *jsoniter.Stream) error {
+	_, err := stream.Write([]byte(d.header))
+	return err
 }
 
 func (d *dummyMarshaller) Len() int {
 	return len(d.items)
 }
 
-func (d *dummyMarshaller) JSONItem(i int) ([]byte, error) {
+func (d *dummyMarshaller) WriteItem(stream *jsoniter.Stream, i int) error {
 	if i < 0 || i > d.Len()-1 {
-		return nil, errors.New("out of range")
+		return errors.New("out of range")
 	}
-	return []byte(d.items[i]), nil
+	_, err := stream.Write([]byte(d.items[i]))
+	return err
 }
 
 func (d *dummyMarshaller) DescribeItem(i int) string {
@@ -59,8 +62,9 @@ func (d *dummyMarshaller) DescribeItem(i int) string {
 	return d.items[i]
 }
 
-func (d *dummyMarshaller) JSONFooter() []byte {
-	return []byte(d.footer)
+func (d *dummyMarshaller) WriteFooter(stream *jsoniter.Stream) error {
+	_, err := stream.Write([]byte(d.footer))
+	return err
 }
 
 func (d *dummyMarshaller) MarshalJSON() ([]byte, error) {
