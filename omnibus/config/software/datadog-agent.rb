@@ -38,7 +38,7 @@ build do
         "LDFLAGS" => "-Wl,-rpath,#{install_dir}/embedded/lib -L#{install_dir}/embedded/lib",
     }
   end
-  
+
   # include embedded path (mostly for `pkg-config` binary)
   env = with_embedded_path(env)
 
@@ -50,8 +50,10 @@ build do
     command "inv -e systray.build --rebuild --no-development", env: env
   else
     command "inv -e six.build --install-prefix \"#{install_dir}/embedded\" --cmake-options '-DCMAKE_CXX_FLAGS:=\"-D_GLIBCXX_USE_CXX11_ABI=0\" -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_FIND_FRAMEWORK:STRING=NEVER'", :env => env
-    command "inv -e six.install"
-    command "inv -e agent.build --rebuild --no-development --embedded-path=#{install_dir}/embedded --python-home-2=#{install_dir}/embedded --python-home-3=#{install_dir}/embedded", env: env
+    #command "inv -e six.install"
+    command "mkdir -p #{install_dir}/bin/agent/."
+    command "mv six/*/*.so #{install_dir}/bin/agent/."
+    command "inv -e agent.build --rebuild --no-development --six-root={#{Omnibus::Config.source_dir()}/datadog-agent/src/github.com/DataDog/datadog-agent/six} --embedded-path=#{install_dir}/embedded --python-home-2=#{install_dir}/embedded --python-home-3=#{install_dir}/embedded", env: env
   end
 
   if osx?
