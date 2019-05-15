@@ -18,8 +18,10 @@
 #include <tagger.h>
 #include <util.h>
 
+#include <unistd.h>
 #include <algorithm>
 #include <sstream>
+#include <iostream>
 
 extern "C" DATADOG_AGENT_SIX_API Six *create(const char *pythonHome)
 {
@@ -55,9 +57,13 @@ void Two::initPythonHome(const char *pythonHome)
     Py_SetPythonHome(const_cast<char *>(_pythonHome));
 }
 
+void print_gil_state(std::string msg)
+{
+    std::cout << msg << ": gil state " << pthread_self() << " -> " << PyGILState_GetThisThreadState() << std::endl << std::flush;
+}
+
 bool Two::init()
 {
-
     Py_Initialize();
 
     // In recent versions of Python3 this is called from Py_Initialize already,
@@ -100,6 +106,7 @@ bool Two::isInitialized() const
 
 py_info_t *Two::getPyInfo()
 {
+    print_gil_state("getPyInfo");
     PyObject *sys = NULL;
     PyObject *path = NULL;
     PyObject *str_path = NULL;
@@ -147,6 +154,7 @@ bool Two::runSimpleString(const char *code) const
 
 bool Two::addPythonPath(const char *path)
 {
+    print_gil_state("addPythonPath");
     if (std::find(_pythonPaths.begin(), _pythonPaths.end(), path) == _pythonPaths.end()) {
         _pythonPaths.push_back(path);
         return true;
@@ -156,7 +164,9 @@ bool Two::addPythonPath(const char *path)
 
 six_gilstate_t Two::GILEnsure()
 {
+    print_gil_state("GILEnsure");
     PyGILState_STATE state = PyGILState_Ensure();
+    print_gil_state("GILEnsure done");
     if (state == PyGILState_LOCKED) {
         return DATADOG_AGENT_SIX_GIL_LOCKED;
     }
@@ -165,16 +175,19 @@ six_gilstate_t Two::GILEnsure()
 
 void Two::GILRelease(six_gilstate_t state)
 {
+    print_gil_state("GILRelease");
     if (state == DATADOG_AGENT_SIX_GIL_LOCKED) {
         PyGILState_Release(PyGILState_LOCKED);
     } else {
         PyGILState_Release(PyGILState_UNLOCKED);
     }
+    print_gil_state("GILRelease done");
 }
 
 // return new reference
 PyObject *Two::_importFrom(const char *module, const char *name)
 {
+    print_gil_state("_importFrom");
     PyObject *obj_module = NULL;
     PyObject *obj_symbol = NULL;
 
@@ -201,6 +214,7 @@ error:
 
 SixPyObject *Two::getCheckClass(const char *module)
 {
+    print_gil_state("getCheckClass");
     PyObject *obj_module = NULL;
     PyObject *klass = NULL;
 
@@ -217,17 +231,22 @@ done:
 
 bool Two::getClass(const char *module, SixPyObject *&pyModule, SixPyObject *&pyClass)
 {
+    print_gil_state("getClass");
     PyObject *obj_module = NULL;
     PyObject *obj_class = NULL;
 
+    std::cout << "getClass import module " << module << std::endl << std::flush;
     obj_module = PyImport_ImportModule(module);
+    std::cout << "getClass import module: " << obj_module << std::endl << std::flush;
     if (obj_module == NULL) {
+        std::cout << "getClass collecting error" << std::endl << std::flush;
         std::ostringstream err;
         err << "unable to import module '" << module << "': " + _fetchPythonError();
         setError(err.str());
         return false;
     }
 
+    std::cout << "getClass _findSubclassOf" << std::endl << std::flush;
     obj_class = _findSubclassOf(_baseClass, obj_module);
     if (obj_class == NULL) {
         std::ostringstream err;
@@ -245,6 +264,7 @@ bool Two::getClass(const char *module, SixPyObject *&pyModule, SixPyObject *&pyC
 bool Two::getCheck(SixPyObject *py_class, const char *init_config_str, const char *instance_str,
                    const char *check_id_str, const char *check_name, const char *agent_config_str, SixPyObject *&check)
 {
+    print_gil_state("getCheck");
     PyObject *klass = reinterpret_cast<PyObject *>(py_class);
     PyObject *agent_config = NULL;
     PyObject *init_config = NULL;
@@ -260,11 +280,14 @@ bool Two::getCheck(SixPyObject *py_class, const char *init_config_str, const cha
     char format[] = "(s)"; // use parentheses to force Tuple creation
 
     // call `AgentCheck.load_config(init_config)`
+    std::cout << "getCheck call method load_config init_config: " << klass << std::endl << std::flush;
     init_config = PyObject_CallMethod(klass, load_config, format, init_config_str);
     if (init_config == NULL) {
+        std::cout << "getCheck call method load_config init_config: error" << std::endl << std::flush;
         setError("error parsing init_config: " + _fetchPythonError());
         goto done;
     }
+    std::cout << "getCheck call method load_config: success" << std::endl << std::flush;
     // replace an empty init_config by  a empty dict
     if (init_config == Py_None) {
         Py_XDECREF(init_config);
@@ -275,8 +298,10 @@ bool Two::getCheck(SixPyObject *py_class, const char *init_config_str, const cha
     }
 
     // call `AgentCheck.load_config(instance)`
+    std::cout << "getCheck call method load_config instance: success" << std::endl << std::flush;
     instance = PyObject_CallMethod(klass, load_config, format, instance_str);
     if (instance == NULL) {
+        std::cout << "getCheck call method load_config instance: error" << std::endl << std::flush;
         setError("error parsing instance: " + _fetchPythonError());
         goto done;
     } else if (!PyDict_Check(instance)) {
@@ -285,22 +310,28 @@ bool Two::getCheck(SixPyObject *py_class, const char *init_config_str, const cha
     }
 
     instances = PyTuple_New(1);
+    std::cout << "getCheck SetItem" << std::endl << std::flush;
     if (PyTuple_SetItem(instances, 0, instance) != 0) {
         setError("Could not create Tuple for instances: " + _fetchPythonError());
         goto done;
     }
 
     // create `args` and `kwargs` to invoke `AgentCheck` constructor
+    std::cout << "getCheck create dict" << std::endl << std::flush;
     args = PyTuple_New(0);
     kwargs = PyDict_New();
+    std::cout << "getCheck PyString_FromString" << std::endl << std::flush;
     name = PyString_FromString(check_name);
+    std::cout << "getCheck dict set" << std::endl << std::flush;
     PyDict_SetItemString(kwargs, "name", name);
     PyDict_SetItemString(kwargs, "init_config", init_config);
     PyDict_SetItemString(kwargs, "instances", instances);
 
     if (agent_config_str != NULL) {
+        std::cout << "getCheck load_config agent_config" << std::endl << std::flush;
         agent_config = PyObject_CallMethod(klass, load_config, format, agent_config_str);
         if (agent_config == NULL) {
+            std::cout << "getCheck load_config agent_config: error" << std::endl << std::flush;
             setError("error parsing agent_config: " + _fetchPythonError());
             goto done;
         } else if (!PyDict_Check(agent_config)) {
@@ -308,19 +339,26 @@ bool Two::getCheck(SixPyObject *py_class, const char *init_config_str, const cha
             goto done;
         }
 
+        std::cout << "getCheck set config dict agent_config" << std::endl << std::flush;
         PyDict_SetItemString(kwargs, "agentConfig", agent_config);
+    } else {
+        std::cout << "getCheck NO agent_config" << std::endl << std::flush;
     }
 
     // call `AgentCheck` constructor
+    std::cout << "getCheck Call AgentCheck constructor" << klass << " "  << args << " " << kwargs << std::endl << std::flush;
     py_check = PyObject_Call(klass, args, kwargs);
     if (py_check == NULL) {
+        std::cout << "getCheck Call AgentCheck constructor: error" << std::endl << std::flush;
         setError(_fetchPythonError());
         goto done;
     }
 
     if (check_id_str != NULL && strlen(check_id_str) != 0) {
+        std::cout << "getCheck setting check_id PyString_FromString" << std::endl << std::flush;
         check_id = PyString_FromString(check_id_str);
         if (check_id == NULL) {
+            std::cout << "getCheck setting check_id PyString_FromString: error" << std::endl << std::flush;
             std::ostringstream err;
             err << "error could not set check_id: " << check_id_str;
             setError(err.str());
@@ -329,7 +367,9 @@ bool Two::getCheck(SixPyObject *py_class, const char *init_config_str, const cha
             goto done;
         }
 
+        std::cout << "getCheck setting check_id SetAttrString" << std::endl << std::flush;
         if (PyObject_SetAttrString(py_check, "check_id", check_id) != 0) {
+            std::cout << "getCheck setting check_id SetAttrString: error" << std::endl << std::flush;
             setError("error could not set 'check_id' attr: " + _fetchPythonError());
             Py_XDECREF(py_check);
             py_check = NULL;
@@ -347,27 +387,35 @@ done:
     Py_XDECREF(kwargs);
 
     if (py_check == NULL) {
+    std::cout << "getCheck Done error" << std::endl << std::flush;
         return false;
     }
 
+    std::cout << "getCheck Done success" << std::endl << std::flush;
     check = reinterpret_cast<SixPyObject *>(py_check);
     return true;
 }
 
 PyObject *Two::_findSubclassOf(PyObject *base, PyObject *module)
 {
+    print_gil_state("_findSubclassOf");
+    std::cout << "_findSubclassOf base" << std::endl << std::flush;
     // baseClass is not a Class type
     if (base == NULL || !PyType_Check(base)) {
         setError("base class is not of type 'Class'");
         return NULL;
     }
 
+    std::cout << "_findSubclassOf check module" << std::endl << std::flush;
+    // baseClass is not a Class type
     // module is not a Module object
     if (module == NULL || !PyModule_Check(module)) {
         setError("module is not of type 'Module'");
         return NULL;
     }
 
+    std::cout << "_findSubclassOf dir" << std::endl << std::flush;
+    // baseClass is not a Class type
     PyObject *dir = PyObject_Dir(module);
     if (dir == NULL) {
         setError("there was an error calling dir() on module object");
@@ -376,21 +424,25 @@ PyObject *Two::_findSubclassOf(PyObject *base, PyObject *module)
 
     PyObject *klass = NULL;
     for (int i = 0; i < PyList_GET_SIZE(dir); i++) {
+        std::cout << "_findSubclassOf dir [" << i << "]" << std::endl << std::flush;
         // get symbol name
-        char *symbol_name;
+        char *symbol_name = NULL;
         PyObject *symbol = PyList_GetItem(dir, i);
-        if (symbol != NULL) {
-            symbol_name = PyString_AsString(symbol);
+        if (symbol == NULL) {
+            continue;
         }
 
         // get symbol instance. It's a new ref but in case of success we don't
         // DecRef since we return it and the caller
         // will be owner
+        symbol_name = PyString_AsString(symbol);
+        std::cout << "_findSubclassOf dir [" << i << "]: " << symbol_name << std::endl << std::flush;
         klass = PyObject_GetAttrString(module, symbol_name);
         if (klass == NULL) {
             continue;
         }
 
+        std::cout << "_findSubclassOf dir [" << i << "]: check klass" << std::endl << std::flush;
         // not a class, ignore
         if (!PyType_Check(klass)) {
             Py_XDECREF(klass);
@@ -398,11 +450,13 @@ PyObject *Two::_findSubclassOf(PyObject *base, PyObject *module)
         }
 
         // this is an unrelated class, ignore
+        std::cout << "_findSubclassOf dir [" << i << "]: check subtype" << std::endl << std::flush;
         if (!PyType_IsSubtype((PyTypeObject *)klass, (PyTypeObject *)base)) {
             Py_XDECREF(klass);
             continue;
         }
 
+        std::cout << "_findSubclassOf dir [" << i << "]: check compare" << std::endl << std::flush;
         // `klass` is actually `base` itself, ignore
         if (PyObject_RichCompareBool(klass, base, Py_EQ)) {
             Py_XDECREF(klass);
@@ -411,6 +465,7 @@ PyObject *Two::_findSubclassOf(PyObject *base, PyObject *module)
 
         // does `klass` have subclasses?
         char func_name[] = "__subclasses__";
+        std::cout << "_findSubclassOf dir [" << i << "]: call subclasses" << std::endl << std::flush;
         PyObject *children = PyObject_CallMethod(klass, func_name, NULL);
         if (children == NULL) {
             Py_XDECREF(klass);
@@ -418,10 +473,12 @@ PyObject *Two::_findSubclassOf(PyObject *base, PyObject *module)
         }
 
         // how many?
+        std::cout << "_findSubclassOf dir [" << i << "]: check get size children" << std::endl << std::flush;
         int children_count = PyList_GET_SIZE(children);
         Py_XDECREF(children);
 
         // Agent integrations are supposed to have no subclasses
+        std::cout << "_findSubclassOf dir [" << i << "]: check count" << std::endl << std::flush;
         if (children_count > 0) {
             Py_XDECREF(klass);
             continue;
@@ -435,12 +492,14 @@ PyObject *Two::_findSubclassOf(PyObject *base, PyObject *module)
     klass = NULL;
 
 done:
+    std::cout << "_findSubclassOf finish " << klass << std::endl << std::flush;
     Py_XDECREF(dir);
     return klass;
 }
 
 const char *Two::runCheck(SixPyObject *check)
 {
+    print_gil_state("runCheck");
     if (check == NULL) {
         return NULL;
     }
@@ -476,6 +535,7 @@ done:
 
 char **Two::getCheckWarnings(SixPyObject *check)
 {
+    print_gil_state("getCheckWarnings");
     if (check == NULL)
         return NULL;
     PyObject *py_check = reinterpret_cast<PyObject *>(check);
@@ -506,6 +566,7 @@ char **Two::getCheckWarnings(SixPyObject *check)
 
 std::string Two::_fetchPythonError()
 {
+    print_gil_state("_fetchPythonError");
     std::string ret_val = "";
 
     if (PyErr_Occurred() == NULL) {
@@ -574,6 +635,7 @@ std::string Two::_fetchPythonError()
 
 bool Two::getAttrString(SixPyObject *obj, const char *attributeName, char *&value) const
 {
+    print_gil_state("getAttrString");
     if (obj == NULL) {
         return false;
     }
@@ -599,16 +661,19 @@ bool Two::getAttrString(SixPyObject *obj, const char *attributeName, char *&valu
 
 void Two::decref(SixPyObject *obj)
 {
+    print_gil_state("decref");
     Py_XDECREF(reinterpret_cast<PyObject *>(obj));
 }
 
 void Two::incref(SixPyObject *obj)
 {
+    print_gil_state("incref");
     Py_XINCREF(reinterpret_cast<SixPyObject *>(obj));
 }
 
 void Two::set_module_attr_string(char *module, char *attr, char *value)
 {
+    print_gil_state("set_module_attr_string");
     PyObject *py_module = PyImport_ImportModule(module);
     if (!py_module) {
         setError("error importing python '" + std::string(module) + "' module: " + _fetchPythonError());
@@ -705,6 +770,7 @@ void Two::setIsExcludedCb(cb_is_excluded_t cb)
 // returned list must be free by calling free_integration_list.
 char *Two::getIntegrationList()
 {
+    print_gil_state("getIntegrationList");
     PyObject *pyPackages = NULL;
     PyObject *pkgLister = NULL;
     PyObject *args = NULL;
