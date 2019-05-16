@@ -36,31 +36,31 @@ char *as_string(PyObject *object) {
 }
 
 PyObject *from_json(const char *data) {
+    if (!data)
+        return NULL;
+
     PyObject *retval = NULL;
     PyObject *json = NULL;
     PyObject *loads = NULL;
 
-    if (!data) {
-        goto done;
-    }
+    PyGILState_STATE gstate = PyGILState_Ensure();
 
     char module_name[] = "json";
     json = PyImport_ImportModule(module_name);
-    if (json == NULL) {
+    if (json == NULL)
         goto done;
-    }
 
     char func_name[] = "loads";
     loads = PyObject_GetAttrString(json, func_name);
-    if (loads == NULL) {
+    if (loads == NULL)
         goto done;
-    }
 
     retval = PyObject_CallFunction(loads, "s", data);
 
 done:
     Py_XDECREF(json);
     Py_XDECREF(loads);
+    PyGILState_Release(gstate);
     return retval;
 }
 
@@ -70,17 +70,17 @@ char *as_json(PyObject *object) {
     PyObject *dumps = NULL;
     PyObject *dumped = NULL;
 
+    PyGILState_STATE gstate = PyGILState_Ensure();
+
     char module_name[] = "json";
     json = PyImport_ImportModule(module_name);
-    if (json == NULL) {
+    if (json == NULL)
         goto done;
-    }
 
     char func_name[] = "dumps";
     dumps = PyObject_GetAttrString(json, func_name);
-    if (dumps == NULL) {
+    if (dumps == NULL)
         goto done;
-    }
 
     dumped = PyObject_CallFunctionObjArgs(dumps, object, NULL);
     retval = as_string(dumped);
@@ -89,5 +89,6 @@ done:
     Py_XDECREF(json);
     Py_XDECREF(dumps);
     Py_XDECREF(dumped);
+    PyGILState_Release(gstate);
     return retval;
 }
