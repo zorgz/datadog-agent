@@ -58,8 +58,8 @@ PyObject *from_json(const char *data) {
     retval = PyObject_CallFunction(loads, "s", data);
 
 done:
-    Py_XDECREF(json);
     Py_XDECREF(loads);
+    Py_XDECREF(json);
     PyGILState_Release(gstate);
     return retval;
 }
@@ -86,9 +86,9 @@ char *as_json(PyObject *object) {
     retval = as_string(dumped);
 
 done:
-    Py_XDECREF(json);
-    Py_XDECREF(dumps);
     Py_XDECREF(dumped);
+    Py_XDECREF(dumps);
+    Py_XDECREF(json);
     PyGILState_Release(gstate);
     return retval;
 }
