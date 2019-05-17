@@ -90,6 +90,8 @@ bool Two::init()
         }
     }
 
+    init_json();
+
     // import the base class
     _baseClass = _importFrom("datadog_checks.checks", "AgentCheck");
 
@@ -236,7 +238,6 @@ bool Two::getClass(const char *module, SixPyObject *&pyModule, SixPyObject *&pyC
     PyObject *obj_class = NULL;
 
     std::cout << "getClass import module " << module << std::endl << std::flush;
-    sleep(1);
     obj_module = PyImport_ImportModule(module);
     std::cout << "getClass import module: " << obj_module << std::endl << std::flush;
     if (obj_module == NULL) {

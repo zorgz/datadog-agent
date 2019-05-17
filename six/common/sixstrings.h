@@ -12,6 +12,7 @@ extern "C" {
 
 #include <Python.h>
 
+void init_json();
 char *as_string(PyObject *);
 PyObject *from_json(const char *);
 char *as_json(PyObject *);

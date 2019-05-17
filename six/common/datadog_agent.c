@@ -139,7 +139,7 @@ PyObject *get_config(PyObject *self, PyObject *args)
 
     char *key;
     if (!PyArg_ParseTuple(args, "s", &key)) {
-        printf("::: get_config: RETURN thread id %ld thread_state %ld\n", pthread_self(),  PyGILState_GetThisThreadState());
+        printf("::: get_config: RETURN ERROR PARSING thread id %ld thread_state %ld\n", pthread_self(),  PyGILState_GetThisThreadState());
         fflush(stdout);
         return NULL;
     }
@@ -151,7 +151,7 @@ PyObject *get_config(PyObject *self, PyObject *args)
     PyObject *value = from_json(data);
     cgo_free(data);
     if (value == NULL) {
-        printf("::: get_config: RETURN thread id %ld thread_state %ld\n", pthread_self(),  PyGILState_GetThisThreadState());
+        printf("::: get_config: RETURN ERROR VALUE thread id %ld thread_state %ld\n", pthread_self(),  PyGILState_GetThisThreadState());
         fflush(stdout);
         Py_RETURN_NONE;
     }

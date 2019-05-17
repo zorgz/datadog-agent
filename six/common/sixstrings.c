@@ -35,76 +35,56 @@ char *as_string(PyObject *object) {
     return retval;
 }
 
-PyObject *from_json(const char *data) {
-    PyObject *retval = NULL;
-    PyObject *json = NULL;
-    PyObject *loads = NULL;
+PyObject *json_module = NULL;
+PyObject *json_loads = NULL;
+PyObject *json_dumps = NULL;
 
-    if (!data)
-        Py_RETURN_NONE;
-
+void init_json() {
     PyGILState_STATE gstate = PyGILState_Ensure();
-    printf("::: from_json: after PyGILState_Ensure thread id %ld thread_state %ld\n", pthread_self(),  PyGILState_GetThisThreadState());
-    fflush(stdout);
 
     char module_name[] = "json";
-    json = PyImport_ImportModule(module_name);
-    if (json == NULL) {
+    json_module = PyImport_ImportModule(module_name);
+    if (json_module == NULL) {
+        PyErr_Clear();
         goto done;
     }
 
-    char func_name[] = "loads";
-    loads = PyObject_GetAttrString(json, func_name);
-    if (loads == NULL) {
+    char loads_name[] = "loads";
+    json_loads = PyObject_GetAttrString(json_module, loads_name);
+    if (json_loads == NULL) {
+        PyErr_Clear();
         goto done;
     }
 
-    retval = PyObject_CallFunction(loads, "s", data);
+    char dumps_name[] = "dumps";
+    json_dumps = PyObject_GetAttrString(json_module, dumps_name);
+    if (json_dumps == NULL) {
+        PyErr_Clear();
+        goto done;
+    }
 
 done:
-    Py_XDECREF(json);
-    Py_XDECREF(loads);
-
     PyGILState_Release(gstate);
-    printf("::: from_json: after PyGILState_Release thread id %ld thread_state %ld\n", pthread_self(),  PyGILState_GetThisThreadState());
-    fflush(stdout);
+}
 
-    return retval;
+PyObject *from_json(const char *data) {
+    PyObject *retval = NULL;
+
+    if (!data || !json_loads)
+        Py_RETURN_NONE;
+
+    return PyObject_CallFunction(json_loads, "s", data);
 }
 
 char *as_json(PyObject *object) {
     char *retval = NULL;
-    PyObject *json = NULL;
-    PyObject *dumps = NULL;
     PyObject *dumped = NULL;
 
-    PyGILState_STATE gstate = PyGILState_Ensure();
-    printf("::: as_json: after PyGILState_Ensure thread id %ld thread_state %ld\n", pthread_self(),  PyGILState_GetThisThreadState());
-    fflush(stdout);
+    if (!json_dumps)
+        return NULL;
 
-    char module_name[] = "json";
-    json = PyImport_ImportModule(module_name);
-    if (json == NULL) {
-        goto done;
-    }
-
-    char func_name[] = "dumps";
-    dumps = PyObject_GetAttrString(json, func_name);
-    if (dumps == NULL) {
-        goto done;
-    }
-
-    dumped = PyObject_CallFunctionObjArgs(dumps, object, NULL);
+    dumped = PyObject_CallFunctionObjArgs(json_dumps, object, NULL);
     retval = as_string(dumped);
-
-done:
-    Py_XDECREF(json);
-    Py_XDECREF(dumps);
     Py_XDECREF(dumped);
-
-    PyGILState_Release(gstate);
-    printf("::: as_json: after PyGILState_Release thread id %ld thread_state %ld\n", pthread_self(),  PyGILState_GetThisThreadState());
-    fflush(stdout);
-
     return retval;
 }
