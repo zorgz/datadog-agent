@@ -591,7 +591,11 @@ func tracesFromSpans(spans []pb.Span) pb.Traces {
 // getEntityTags returns tags belonging to entityID. If entityID is empty or no
 // tags are found, an empty map is returned.
 func getEntityTags(entityID string) map[string]string {
-	list, err := tagger.Tag(entityID, collectors.HighCardinality)
+	if entityID == "" {
+		return map[string]string{}
+	}
+	// for now, only Kubernetes is supported
+	list, err := tagger.Tag("kubernetes_pod://"+entityID, collectors.HighCardinality)
 	if err != nil {
 		return map[string]string{}
 	}
