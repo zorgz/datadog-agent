@@ -227,7 +227,7 @@ func (a *Agent) Process(t *api.Trace) {
 		sampler.AddGlobalRate(root, preSamplerRate)
 
 		for k, v := range t.EntityTags {
-			root.Meta["orchestrator."+k] = v
+			root.Meta[k] = v
 		}
 	}
 

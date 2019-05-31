@@ -164,8 +164,8 @@ func TestProcess(t *testing.T) {
 			},
 		})
 
-		assert.Equal(t, "B", span.Meta["orchestrator.A"])
-		assert.Equal(t, "", span.Meta["orchestrator.C"])
+		assert.Equal(t, "B", span.Meta["A"])
+		assert.Equal(t, "", span.Meta["C"])
 	})
 
 	t.Run("Stats/Priority", func(t *testing.T) {

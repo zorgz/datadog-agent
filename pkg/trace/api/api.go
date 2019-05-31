@@ -604,12 +604,13 @@ func getEntityTags(entityID string) map[string]string {
 		// this is a metrics product style tag; either a "key:value" pair,
 		// or simply "key", without a value.
 		if parts := strings.Split(tag, ":"); parts[0] != "" {
+			k := "kubernetes." + parts[0]
 			if len(parts) > 1 {
 				// key and value
-				tags[parts[0]] = parts[1]
+				tags[k] = parts[1]
 			} else {
 				// key only
-				tags[parts[0]] = ""
+				tags[k] = ""
 			}
 		}
 	}
