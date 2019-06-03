@@ -38,7 +38,7 @@ build do
         "LDFLAGS" => "-Wl,-rpath,#{install_dir}/embedded/lib -L#{install_dir}/embedded/lib",
     }
   end
-  
+
   # include embedded path (mostly for `pkg-config` binary)
   env = with_embedded_path(env)
 
@@ -99,12 +99,16 @@ build do
     copy 'bin/process-agent/process-agent.exe', "#{Omnibus::Config.source_dir()}/datadog-agent/src/github.com/DataDog/datadog-agent/bin/agent"
   else
     copy 'bin/process-agent/process-agent', "#{install_dir}/embedded/bin"
-    # We don't use the system-probe in macOS builds
-    if !osx?
-      copy 'bin/system-probe/system-probe', "#{install_dir}/embedded/bin"
-      block { File.chmod(0755, "#{install_dir}/embedded/bin/system-probe") }
-    end
   end
+
+
+  # Build the system-probe
+  if linux?
+    command "invoke -e system-probe.build", :env => env
+    copy 'bin/system-probe/system-probe', "#{install_dir}/embedded/bin"
+    block { File.chmod(0755, "#{install_dir}/embedded/bin/system-probe") }
+  end
+
 
   if linux?
     if debian?
