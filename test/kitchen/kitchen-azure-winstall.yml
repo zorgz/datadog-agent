@@ -160,8 +160,8 @@ suites:
 <%
   aptrepo = "http://apttesting.datad0g.com/"
   api_key = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-  yumrepo = "http://yumtesting.datad0g.com/pipeline-#{ENV['CI_PIPELINE_ID']}/x86_64/"
-  yumrepo_suse = "http://yumtesting.datad0g.com/suse/pipeline-#{ENV['CI_PIPELINE_ID']}/x86_64/"
+  yumrepo = "http://yumtesting.datad0g.com/pipeline-1416905/x86_64/"
+  yumrepo_suse = "http://yumtesting.datad0g.com/suse/pipeline-1416905/x86_64/"
   windows_agent_url = ENV['WINDOWS_AGENT_URL'] ? ENV['WINDOWS_AGENT_URL'] : "https://s3.amazonaws.com/#{ENV['WINDOWS_TESTING_S3_BUCKET']}/"
   dd_agent_config = {
     'agent6': true,
@@ -169,13 +169,13 @@ suites:
     'application_key': "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     'url': "https://app.datad0g.com",
     'aptrepo': aptrepo,
-    'aptrepo_dist': "pipeline-#{ENV['CI_PIPELINE_ID']}",
+    'aptrepo_dist': "pipeline-1416905",
     'yumrepo': yumrepo,
     'yumrepo_suse': yumrepo_suse,
     'agent6_aptrepo': "http://apttesting.datad0g.com/",
-    'agent6_aptrepo_dist': "pipeline-#{ENV['CI_PIPELINE_ID']}",
-    'agent6_yumrepo': "http://yumtesting.datad0g.com/pipeline-#{ENV['CI_PIPELINE_ID']}/x86_64/",
-    'agent6_yumrepo_suse': "http://yumtesting.datad0g.com/suse/pipeline-#{ENV['CI_PIPELINE_ID']}/x86_64/",
+    'agent6_aptrepo_dist': "pipeline-1416905",
+    'agent6_yumrepo': "http://yumtesting.datad0g.com/pipeline-1416905/x86_64/",
+    'agent6_yumrepo_suse': "http://yumtesting.datad0g.com/suse/pipeline-1416905/x86_64/",
     'windows_agent_url': windows_agent_url,
   }
 %>
