@@ -244,11 +244,11 @@ build do
     end
 
     # Patch applies to only one file: set it explicitly as a target, no need for -p
-    if windows?
-      patch :source => "create-regex-at-runtime.patch", :target => "#{python_2_embedded}/Lib/site-packages/yaml/reader.py"
-    else
-      patch :source => "create-regex-at-runtime.patch", :target => "#{install_dir}/embedded/lib/python2.7/site-packages/yaml/reader.py"
-    end
+    #if windows?
+    #  patch :source => "create-regex-at-runtime.patch", :target => "#{python_2_embedded}/Lib/site-packages/yaml/reader.py"
+    #else
+    #  patch :source => "create-regex-at-runtime.patch", :target => "#{install_dir}/embedded/lib/python2.7/site-packages/yaml/reader.py"
+    #end
 
   end
 
