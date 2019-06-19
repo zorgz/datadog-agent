@@ -3,7 +3,7 @@ init_config:
 instances:
     -
     ## @param unit_names - list of strings - optional
-    ## List of systemd unit to monitor (full name e.g. ssh.service).
+    ## List of systemd units to monitor (full name e.g. ssh.service).
     ## If unit_names and unit_regex are both NOT specified, the check will monitor all units.
     #
     # unit_names:
@@ -23,7 +23,7 @@ instances:
     #   - ^<PREFIX>            # match unit name with prefix "<PREFIX>"
     #   - <SUFFIX>$            # match unit name with suffix "<SUFFIX>"
 
-    ## @param tags  - list of key:value element - optional
+    ## @param tags  - list of key:value elements - optional
     ## List of tags to attach to every metric, event, and service check emitted by this integration.
     ##
     ## Learn more about tagging at https://docs.datadoghq.com/tagging
