@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 	defer func(old func(string)) { killProcess = old }(killProcess)
 	killProcess = func(_ string) {}
 
-	m.Run()
+	os.Exit(m.Run())
 }
 
 func TestReceiverRequestBodyLength(t *testing.T) {
