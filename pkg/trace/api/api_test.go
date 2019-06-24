@@ -749,6 +749,27 @@ func BenchmarkWatchdog(b *testing.B) {
 	}
 }
 
+func TestExpvar(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	r := newTestReceiverFromConfig(config.New())
+	r.Start()
+	defer r.Stop()
+
+	resp, err := http.Get("http://localhost:8126/debug/vars")
+	defer resp.Body.Close()
+	assert.NoError(t, err)
+	assert.EqualValues(t, resp.StatusCode, http.StatusOK, "failed to read expvars from local server")
+
+	if resp.StatusCode == http.StatusOK {
+		var varsJson map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&varsJson)
+		assert.NoError(t, err, "/debug/vars must return valid json")
+	}
+}
+
 func TestWatchdog(t *testing.T) {
 	if testing.Short() {
 		return
