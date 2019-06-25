@@ -364,6 +364,18 @@ FROM [Blogs] AS [b
 ORDER BY [b].[Name]`,
 			`Non-parsable SQL query`,
 		},
+		{
+			`SELECT 1234567890 as case_id FROM casefile WHERE id = 1234567890`,
+			`SELECT ? FROM casefile WHERE id = ?`,
+		},
+		{
+			`SELECT 'Name Lastname, DOB 01/01/1900, Phone: 555-55555' as phi, lastname FROM contactinfo WHERE lastname = 'Lastname'`,
+			`SELECT ?, lastname FROM contactinfo WHERE lastname = ?`,
+		},
+		{
+			`SELECT case_id as "1234567890" FROM casefile WHERE id = 1234567890`,
+			`SELECT case_id FROM casefile WHERE id = ?`,
+		},
 	}
 
 	for i, c := range cases {
